@@ -13,27 +13,30 @@ output:
     toc: yes
 ---
 
-<div class="alert alert-info" role="alert">
+::: {.alert .alert-info role="alert"}
 The data was downloaded on **2023-11-17** from [Rebrickable](https://rebrickable.com). Therefore, some trends may have changed since the report was generated.
-</div>
+:::
 
 <h2>Executive Summary</h2>
-The report analyzes the Lego dataset. The [introduction](#introduction) presents basic statistics about the dataset. The [overall analysis](#overall-analysis) section presents time independent analysis. The [correlation](#correlation) section presents correlation between some variables. The [trend analysis](#trend-analysis) presents time dependent analysis.
+
+The report analyzes the Lego dataset. The [introduction](#introduction) presents basic statistics about the dataset. The [overall analysis](#overall-analysis) section presents time independent analysis. The [correlation](#correlation) section presents correlation between some variables. The [trend analysis](#trend-analysis) presents time dependent analysis. The [Lego price prediction](#lego-price-prediction) section presents application of Machine Learning (ML) techniques to Lego price prediction.
 
 **Conclusions and Predictions**
 
-- **Lego part colors**: The most popular Lego colors are black, white and gray (and their shades) [fig. 2.1](#the-most-common-part-colors). This trend does not seem to change [fig. 4.3](#the-most-common-part-colors-over-the-years).
-- **Lego minifigures**: Lego minifigures are often designed by inspiration of games (e.g. Minecraft), movies (e.g. Star Wars) or occupation (e.g. policeman or spaceman) [fig. 2.2](#the-most-common-minifigs). It's hard to predict which figures will be popular in the future [fig. 4.4](#the-most-common-minifigs-over-the-years) but the continued design of Lego Collectible Minifigures over the years is expected [fig. 4.2](#the-most-common-themes-over-the-years).
-- **Number of Lego sets designed per year**: [Fig. 3.2](#correlation-between-year-and-number-of-sets) shows that there is a high correlation (0.88) between year and number of sets designed. Therefore, probably much more different sets will be designed in the future.
-- **Lego set size**: The mean size of Lego set increases over the years whereas the median size stays the same in the recent years [fig. 4.1](#the-set-size-over-the-years). This is because of outliers - there is a high correlation (0.79) between year and size of the biggest set [fig. 3.1](#correlation-between-year-and-max-set-size). In the following years, we can expect single sets larger than World Map, Eiffel Tower or The Ultimate Battle for Chima (the biggest ones).
-- **Lego themes**: In the recent years in the Rebrickable database there are plenty of Lego products that are not bricks - especially books and gear (like stickers, umbrellas and other equipment with Lego logo). This trend is more likely to continue [fig 4.2](#the-most-common-themes-over-the-years). Besides, in recent years, Lego Friends, Lego Collectible Minifigures and Lego City sets are often designed. 
-- **Lego material**: About 99% of Lego parts are made of plastic [fig 2.5](#the-most-common-part-material). In second place was the rubber. This is a significant environmental problem to solve by Lego.
+-   **Lego part colors**: The most popular Lego colors are black, white and gray (and their shades) [fig. 2.1](#the-most-common-part-colors). This trend does not seem to change [fig. 4.3](#the-most-common-part-colors-over-the-years).
+-   **Lego minifigures**: Lego minifigures are often designed by inspiration of games (e.g. Minecraft), movies (e.g. Star Wars) or occupation (e.g. policeman or spaceman) [fig. 2.2](#the-most-common-minifigs). It's hard to predict which figures will be popular in the future [fig. 4.4](#the-most-common-minifigs-over-the-years) but the continued design of Lego Collectible Minifigures over the years is expected [fig. 4.2](#the-most-common-themes-over-the-years).
+-   **Number of Lego sets designed per year**: [Fig. 3.2](#correlation-between-year-and-number-of-sets) shows that there is a high correlation (0.88) between year and number of sets designed. Therefore, probably much more different sets will be designed in the future.
+-   **Lego set size**: The mean size of Lego set increases over the years whereas the median size stays the same in the recent years [fig. 4.1](#the-set-size-over-the-years). This is because of outliers - there is a high correlation (0.79) between year and size of the biggest set [fig. 3.1](#correlation-between-year-and-max-set-size). In the following years, we can expect single sets larger than World Map, Eiffel Tower or The Ultimate Battle for Chima (the biggest ones).
+-   **Lego themes**: In the recent years in the Rebrickable database there are plenty of Lego products that are not bricks - especially books and gear (like stickers, umbrellas and other equipment with Lego logo). This trend is more likely to continue [fig 4.2](#the-most-common-themes-over-the-years). Besides, in recent years, Lego Friends, Lego Collectible Minifigures and Lego City sets are often designed.
+-   **Lego material**: About 99% of Lego parts are made of plastic [fig 2.5](#the-most-common-part-material). In second place was the rubber. This is a significant environmental problem to solve by Lego.
+-   **Lego price**: The price of lego can be successfully predicted using ML, mainly due to the number of pieces in the set [fig 5.3](#results). 
 
-# Introduction
+# Introduction {#introduction}
 
 ## Datasets preparation
 
 The following packages are required for robust and reliable report generating.
+
 ```{r libraries, message=FALSE, warning=FALSE, error=FALSE}
 library(knitr)
 library(data.table)
@@ -42,6 +45,7 @@ library(tidyverse)
 library(scales)
 library(stringr)
 library(plotly)
+library(caret)
 ```
 
 ```{r opts, include=FALSE}
@@ -61,6 +65,7 @@ reorder_within <- function(x, by, within, fun = mean, sep = "___", ...) {
 ```
 
 Load the necessary datasets.
+
 ```{r read_data, cache=TRUE}
 colors_df <- fread("data/colors.csv.gz", colClasses=list(factor=c("is_trans")))
 elements_df <- fread("data/elements.csv.gz")
@@ -79,80 +84,93 @@ themes_df <- fread("data/themes.csv.gz")
 ## Datasets summary
 
 **Colors (`r nrow(colors_df)` x `r ncol(colors_df)`)**
+
 ```{r data_summary_colors, echo=FALSE}
 kable(summary(colors_df), align = "l")
 kable(head(colors_df), align = "l")
 ```
 
 **Elements (`r nrow(elements_df)` x `r ncol(elements_df)`)**
+
 ```{r data_summary_elements, echo=FALSE}
 kable(summary(elements_df), align = "l")
 kable(head(elements_df), align = "l")
 ```
 
 **Inventories (`r nrow(inventories_df)` x `r ncol(inventories_df)`)**
+
 ```{r data_summary_inventories, echo=FALSE}
 kable(summary(inventories_df), align = "l")
 kable(head(inventories_df), align = "l")
 ```
 
 **Inventory minifigs (`r nrow(inventory_minifigs_df)` x `r ncol(inventory_minifigs_df)`)**
+
 ```{r data_summary_inventory_minifigs, echo=FALSE}
 kable(summary(inventory_minifigs_df), align = "l")
 kable(head(inventory_minifigs_df), align = "l")
 ```
 
 **Inventory parts (`r nrow(inventory_parts_df)` x `r ncol(inventory_parts_df)`)**
+
 ```{r data_summary_inventory_parts, echo=FALSE}
 kable(summary(inventory_parts_df), align = "l")
 kable(head(inventory_parts_df), align = "l")
 ```
 
 **Inventory sets (`r nrow(inventory_sets_df)` x `r ncol(inventory_sets_df)`)**
+
 ```{r data_summary_inventory_sets, echo=FALSE}
 kable(summary(inventory_sets_df), align = "l")
 kable(head(inventory_sets_df), align = "l")
 ```
 
 **Minifigs (`r nrow(minifigs_df)` x `r ncol(minifigs_df)`)**
+
 ```{r data_summary_minifigs, echo=FALSE}
 kable(summary(minifigs_df), align = "l")
 kable(head(minifigs_df), align = "l")
 ```
 
 **Part categories (`r nrow(part_categories_df)` x `r ncol(part_categories_df)`)**
+
 ```{r data_summary_part_categories, echo=FALSE}
 kable(summary(part_categories_df), align = "l")
 kable(head(part_categories_df), align = "l")
 ```
 
 **Part relationships (`r nrow(part_relationships_df)` x `r ncol(part_relationships_df)`)**
+
 ```{r data_summary_part_relationships, echo=FALSE}
 kable(summary(part_relationships_df), align = "l")
 kable(head(part_relationships_df), align = "l")
 ```
 
 **Parts (`r nrow(parts_df)` x `r ncol(parts_df)`)**
+
 ```{r data_summary_parts, echo=FALSE}
 kable(summary(parts_df), align = "l")
 kable(head(parts_df), align = "l")
 ```
 
 **Sets (`r nrow(sets_df)` x `r ncol(sets_df)`)**
+
 ```{r data_summary_sets, echo=FALSE}
 kable(summary(sets_df), align = "l")
 kable(head(sets_df), align = "l")
 ```
 
 **Themes (`r nrow(themes_df)` x `r ncol(themes_df)`)**
+
 ```{r data_summary_themes, echo=FALSE}
 kable(summary(themes_df), align = "l")
 kable(head(themes_df), align = "l")
 ```
 
-# Overall Analysis
+# Overall Analysis {#overall-analysis}
 
-## The most common part colors
+## The most common part colors {#the-most-common-part-colors}
+
 ```{r analysis_part_colors, echo=FALSE, message=FALSE}
 inventory_parts_df %>%
   inner_join(colors_df, by=c("color_id" = "id")) %>%
@@ -173,7 +191,8 @@ inventory_parts_df %>%
     coord_flip()
 ```
 
-## The most common minifigs
+## The most common minifigs {#the-most-common-minifigs}
+
 ```{r analysis_minifigs, echo=FALSE, message=FALSE}
 inventory_minifigs_df %>%
   inner_join(inventories_df, by=c("inventory_id" = "id")) %>%
@@ -210,6 +229,7 @@ rm(inv_figs_table)
 ```
 
 ## The most common parts
+
 ```{r analysis_parts, echo=FALSE, message=FALSE}
 parts_df %>%
   rename(part_name = name) %>%
@@ -252,6 +272,7 @@ rm(parts_table)
 ```
 
 ## The most common part categories
+
 ```{r analysis_part_categories, echo=FALSE, message=FALSE}
 parts_df %>%
   rename(part_name = name) %>%
@@ -274,7 +295,8 @@ parts_df %>%
     ggtitle("The most common part categories")
 ```
 
-## The most common part material
+## The most common part material {#the-most-common-part-material}
+
 ```{r analysis_part_material, echo=FALSE, message=FALSE}
 parts_df %>%
   inner_join(inventory_parts_df) %>%
@@ -293,6 +315,7 @@ parts_df %>%
 ```
 
 ## The most complex sets
+
 ```{r analysis_complex_sets, echo=FALSE, message=FALSE}
 sets_df %>%
   arrange(desc(num_parts)) %>%
@@ -320,6 +343,7 @@ rm(comp_sets_table)
 ```
 
 ## The most common themes
+
 ```{r analysis_themes, echo=FALSE, message=FALSE}
 themes_df %>%
   mutate(parent_id = ifelse(is.na(parent_id), id, parent_id))%>%
@@ -341,9 +365,10 @@ themes_df %>%
     ggtitle("The most common themes")
 ```
 
-# Correlation
+# Correlation {#correlation}
 
-## Correlation between year and max set size
+## Correlation between year and max set size {#correlation-between-year-and-max-set-size}
+
 ```{r corr_year_size, echo=FALSE, message=FALSE}
 (sets_df %>%
   filter(year >= 1950, year <= 2022) %>%
@@ -360,8 +385,8 @@ themes_df %>%
   ggplotly
 ```
 
-
 **Correlation matrix**
+
 ```{r corr_year_size_mat, echo=FALSE, message=FALSE}
 sets_df %>%
   filter(year >= 1950, year <= 2022) %>%
@@ -372,7 +397,8 @@ sets_df %>%
   kable
 ```
 
-## Correlation between year and number of sets
+## Correlation between year and number of sets {#correlation-between-year-and-number-of-sets}
+
 ```{r corr_year_set_num, echo=FALSE, message=FALSE}
 (sets_df %>%
   filter(year >= 1950, year <= 2022) %>%
@@ -388,8 +414,8 @@ sets_df %>%
   ggplotly
 ```
 
-
 **Correlation matrix**
+
 ```{r corr_year_set_num_mat, echo=FALSE, message=FALSE}
 sets_df %>%
   filter(year >= 1950, year <= 2022) %>%
@@ -399,9 +425,10 @@ sets_df %>%
   kable
 ```
 
-# Trend Analysis
+# Trend Analysis {#trend-analysis}
 
-## The set size over the years
+## The set size over the years {#the-set-size-over-the-years}
+
 ```{r trend_size_sets, echo=FALSE, message=FALSE}
 (sets_df %>%
   filter(year >= 1950, year <= 2022) %>%
@@ -422,7 +449,8 @@ sets_df %>%
   ggplotly
 ```
 
-## The most common themes over the years
+## The most common themes over the years {#the-most-common-themes-over-the-years}
+
 ```{r trend_themes, echo=FALSE, message=FALSE}
 themes_df %>%
     mutate(parent_id = ifelse(is.na(parent_id), id, parent_id))%>%
@@ -472,8 +500,8 @@ themes_df %>%
       theme(legend.position = "none")) %>% ggplotly
 ```
 
+## The most common part colors over the years {#the-most-common-part-colors-over-the-years}
 
-## The most common part colors over the years
 ```{r trend_colors, echo=FALSE, message=FALSE}
 inventory_parts_df %>%
   inner_join(colors_df, by=c("color_id" = "id")) %>%
@@ -502,7 +530,8 @@ inventory_parts_df %>%
       scale_y_continuous(labels = label_comma())
 ```
 
-## The most common minifigs over the years
+## The most common minifigs over the years {#the-most-common-minifigs-over-the-years}
+
 ```{r trend_minifigs, echo=FALSE, message=FALSE}
 inventory_minifigs_df %>%
   inner_join(inventories_df, by=c("inventory_id" = "id")) %>%
@@ -527,4 +556,111 @@ inventory_minifigs_df %>%
       scale_fill_brewer(palette = "Set2") +
       scale_x_reordered() +
       scale_y_continuous(labels = label_comma())
+```
+
+# Lego price prediction
+
+## Data and methods
+
+```{r ml_lego, echo=FALSE, message=FALSE}
+ml_df <- fread("data/lego_sets.csv.gz", colClasses=list(factor=c("review_difficulty", "country"))) %>%
+  mutate(prod_desc = "...", prod_long_desc = "...")
+
+kable(summary(ml_df), align = "l")
+kable(head(ml_df), align = "l")
+```
+
+- **Problem type**: regression
+- **Dataset**: Lego Sets (`r nrow(ml_df)` x `r ncol(ml_df)`) (<https://www.kaggle.com/datasets/mterzolo/lego-sets>)
+- **Model**: eXtreme Gradient Boosting (xgbTree)
+    - can be run on multiple cores natively in caret package (in contrast with Random Forest)
+    - has a pretty name
+    - designed for lazy people (e.g. handles NA and redundant features)
+- **Features**: `piece_count`, `val_star_rating`, `review_difficulty`, `num_reviews`, `play_star_rating`, `star_rating`, `country`
+- **Target**: `list_price`
+- **Feature selection**: by `varImp` and manual analysis
+- **Ordinal variables handling**: conversion to integer (only `review_difficulty`)
+- **Nominal variables handling**: One-hot encoding (only `country`)
+- **NA handling**: nothing (pass)
+- **resampling**:  5x5 `repeatedcv`
+- **Tuning**: search grid of all parameters (made once and not included in the code to save report generation time)
+- **Size summary**
+    - 1 target variable(`list_price`)
+    - 27 features (after encoding)
+    - 10% (1 225) samples in testing set and 90% (11 036) samples in training set
+
+## Learning
+
+```{r ml_lego_learn, echo=FALSE, message=FALSE}
+set.seed(23)
+
+ml_df <- ml_df %>%
+  select(c(piece_count,
+           val_star_rating,
+           review_difficulty,
+           num_reviews,
+           play_star_rating,
+           star_rating,
+           country,
+           list_price)) %>%
+  mutate(review_difficulty = as.integer(factor(review_difficulty,
+                                               ordered = TRUE,
+                                               levels = c("Very Easy", "Easy", "Average", "Challenging", "Very Challenging"))))
+
+dummy <- dummyVars(" ~ .", data=ml_df)
+ml_df <- data.frame(predict(dummy, newdata = ml_df)) 
+
+inTraining <- createDataPartition(y = ml_df$list_price, p = .9, list = FALSE)
+training <- ml_df[ inTraining,]
+testing  <- ml_df[-inTraining,]
+
+ctrl <- trainControl(method = "repeatedcv", allowParallel = TRUE, number = 5, repeats = 5)
+
+tune_grid <- expand.grid(
+  nrounds = 1000,
+  eta = 0.8,
+  max_depth = 5,
+  gamma = 0,
+  colsample_bytree = 0.8,
+  min_child_weight = 1,
+  subsample = 1
+)
+
+fit <- train(list_price ~ .,
+             data = training,
+             trControl = ctrl,
+             tuneGrid = tune_grid,
+             method = "xgbTree",
+             verbosity = 0,
+             na.action = na.pass)
+
+set.seed(NULL)
+```
+
+```{r ml_lego_fit}
+fit
+```
+
+```{r ml_lego_imp, echo=FALSE, message=FALSE}
+varImp(fit, scale = FALSE) %>%
+  ggplot
+```
+
+## Results
+
+Metrics for testing data
+```{r ml_lego_pred}
+pred <- predict(fit, testing, na.action = na.pass)
+kable(postResample(pred, testing$list_price))
+```
+
+```{r ml_lego_pred_act, echo=FALSE, message=FALSE}
+(data.frame(predicted = pred, actual = testing$list_price) %>%
+    ggplot(aes(x = predicted, y = actual)) +
+      geom_point() +
+      scale_x_continuous(labels = label_comma()) +
+      scale_y_continuous(labels = label_comma()) +
+      ggtitle("Predicted vs Actual") +
+      geom_abline(intercept = 0, slope = 1, color = "red")) %>%
+ggplotly
 ```
